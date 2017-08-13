@@ -1,17 +1,23 @@
-#!/Library/Frameworks/Python.framework/Versions/3.5/bin/python3
-
 import sys
 import csv
 import getopt
 import requests as rq
 
+outfile = None
+stocks = False
+news = False
+company = None
+period = None
+last = None
+
 
 def usage():
-    print('usage: query_iex.py -c: [-s] [-n] [-p]: [-l]: \n'
+    print('usage: query_iex.py -c: -o: [-s] [-n] [-p]: [-l]: \n'
+          '-o , --outfile: file to which results are written'
           '-c , --company: company to retrieve information about \n'
           '-s , --stocks: if present retrieve stock information of company \n'
           '-n , --news: if presnet retrieve news about company \n'
-          '-p , --period:  time period for -s; must be one of: \n'
+          '-p , --period: (requires -s) time period for -s; must be one of: \n'
           '    1d \n'
           '    1m \n'
           '    3m \n'
@@ -19,26 +25,25 @@ def usage():
           '    1y \n'
           '    2y \n'
           '    5y \n'
-          '-l , --last: last n news story to collect')
+          '-l , --last: (requires -n) last n news story to collect \n'
+          'Note that because only one outfile is specified -s and -n are \n'
+          'mutually exclusive.')
 
 
-data_dir = 'data'
-stocks = False
-news = False
-company = None
-period = None
-last = None
-
-opts, args = getopt.getopt(
-    sys.argv[1:],
-    'hsnc:p:l:',
-    ['help'
-     'stocks'
-     'news'
-     'company',
-     'period'
-     'last']
-)
+try:
+    opts, args = getopt.getopt(
+        sys.argv[1:],
+        'hsnc:o:p:l:',
+        ['help',
+         'stocks',
+         'news',
+         'company=',
+         'outfile=',
+         'period='
+         'last='])
+except getopt.GetoptError as e:
+    usage()
+    quit(1)
 
 for opt, arg in opts:
     if opt in ('-h', '--help'):
@@ -50,18 +55,27 @@ for opt, arg in opts:
         news = True
     if opt in ('-c', '--company'):
         company = arg
-    if opt in ('-p' '--period'):
+    if opt in ('-o', '--outfile'):
+        outfile = arg
+    if opt in ('-p', '--period'):
         period = arg
     if opt in ('-l', '--last'):
         last = arg
 
+if outfile is None:
+    print('Missing required argument: Outfile')
+    quit(1)
+
 if company is None:
-    print('Missing required argument: company')
+    print('Missing required argument: Company')
     quit(1)
 
 if not stocks and period or not news and last:
-    print('Invalid options, see usage (-h)')
+    usage()
     quit(0)
+
+if stocks and news:
+    print('Both stocks and news requested, providing only stocks.')
 
 if period is None:
     period = '1m'
@@ -71,41 +85,41 @@ if last is None:
 
 if stocks:
     try:
-        response = rq.get('https://api.iextrading.com/1.0/stock/{}/chart/{}'
-                          .format(company, period))
+        resp = rq.get('https://api.iextrading.com/1.0/stock/{}/chart/{}'
+                      .format(company, period))
     except Exception as e:
         print('IEX request for stocks failed: {}'.format(e))
         quit(1)
-    if response.status_code != 200:
+    if resp.status_code != 200 or len(resp.text) <= 2:
         print('IEX request for stocks failed')
         quit(1)
 
-    response_json = response.json()
-    f = open('{}/{}_{}_stock.csv'.format(data_dir, company, period), 'w+')
+    resp_json = resp.json()
+    f = open(outfile, 'w+')
     writer = csv.writer(f, quoting=1)
     # Hardcoded to maintain order
     writer.writerow(['date', 'open', 'close', 'change',
                      'high', 'low', 'volume'])
-    for row in response_json:
+    for row in resp_json:
         writer.writerow([row['date'], row['open'], row['close'], row['change'],
                          row['high'], row['low'], row['volume']])
 
 if news:
     try:
-        response = rq.get('https://api.iextrading.com/1.0/stock/{}/news/last/{}'
-                          .format(company, last))
+        resp = rq.get('https://api.iextrading.com/1.0/stock/{}/news/last/{}'
+                      .format(company, last))
     except Exception as e:
         print('IEX request for news failed: {}'.format(e))
         quit(1)
-    if response.status_code != 200:
+    if resp.status_code != 200 or len(resp.text) <= 2:
         print('IEX request for news failed')
         quit(1)
 
-    response_json = response.json()
-    f = open('{}/{}_{}_news.csv'.format(data_dir, company, period), 'w+')
+    resp_json = resp.json()
+    f = open(outfile, 'w+')
     writer = csv.writer(f, quoting=1)
     # Hardcoded to maintain order
     writer.writerow(['datetime', 'url', 'headline', 'summary'])
-    for row in response_json:
+    for row in resp_json:
         writer.writerow([row['datetime'], row['url'],
                          row['headline'], row['summary']])
