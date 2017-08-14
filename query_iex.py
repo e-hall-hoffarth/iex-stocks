@@ -10,6 +10,9 @@ company = None
 period = None
 last = None
 
+stock_headers = ['date', 'open', 'close', 'change', 'high', 'low', 'volume']
+news_headers = ['datetime', 'url', 'headline', 'summary']
+
 
 def usage():
     print('usage: query_iex.py -c: -o: [-s] [-n] [-p]: [-l]: \n'
@@ -90,7 +93,7 @@ if stocks:
     except Exception as e:
         print('IEX request for stocks failed: {}'.format(e))
         quit(1)
-    if resp.status_code != 200 or len(resp.text) <= 2:
+    if resp.status_code != 200 or resp.text == '""':
         print('IEX request for stocks failed')
         quit(1)
 
@@ -98,9 +101,11 @@ if stocks:
     f = open(outfile, 'w+')
     writer = csv.writer(f, quoting=1)
     # Hardcoded to maintain order
-    writer.writerow(['date', 'open', 'close', 'change',
-                     'high', 'low', 'volume'])
+    writer.writerow(stock_headers)
     for row in resp_json:
+        for col in stock_headers:
+            if col not in row:
+                row[col] = ''
         writer.writerow([row['date'], row['open'], row['close'], row['change'],
                          row['high'], row['low'], row['volume']])
 
@@ -111,7 +116,7 @@ if news:
     except Exception as e:
         print('IEX request for news failed: {}'.format(e))
         quit(1)
-    if resp.status_code != 200 or len(resp.text) <= 2:
+    if resp.status_code != 200 or resp.text == '""':
         print('IEX request for news failed')
         quit(1)
 
@@ -119,7 +124,10 @@ if news:
     f = open(outfile, 'w+')
     writer = csv.writer(f, quoting=1)
     # Hardcoded to maintain order
-    writer.writerow(['datetime', 'url', 'headline', 'summary'])
+    writer.writerow(news_headers)
     for row in resp_json:
+        for col in news_headers:
+            if col not in row:
+                row[col] = ''
         writer.writerow([row['datetime'], row['url'],
                          row['headline'], row['summary']])

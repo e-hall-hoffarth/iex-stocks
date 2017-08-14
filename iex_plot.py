@@ -1,9 +1,6 @@
 from pandas.plotting import scatter_matrix
 import matplotlib.pyplot as plt
-from datetime import datetime
-import collections
 import pandas
-import csv
 import sys
 import getopt
 
