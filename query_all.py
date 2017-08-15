@@ -12,7 +12,7 @@ stocks = []
 
 
 def usage():
-    print('usage: query_iex.py -l: -o: [-p]: \n'
+    print('usage: query_iex.py -i: -o: [-p]: \n'
           '-i , --infile: (csv)file that contains list of companies for which \n'
           'stock information is to be retrieved \n'
           '-o , --outdir: path where stock information is written \n'
