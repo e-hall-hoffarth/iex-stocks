@@ -51,10 +51,12 @@ for opt, arg in opts:
 
 if infile is None:
     print('Missing required argument: infile')
+    usage()
     quit(1)
 
 if outdir is None:
     print('Missing required argument: outdir')
+    usage()
     quit(1)
 
 if period is None:
