@@ -1,8 +1,11 @@
+#!/usr/bin/env python
 import requests as rq
 import getopt
 import sys
 import csv
 import time
+import os
+import sys
 
 infile = None
 outdir = None
@@ -70,34 +73,51 @@ with open(infile) as data:
 print('Found {} stocks, starting queries.'.format(len(stocks)))
 
 found = 0
+try:
+    for stock in stocks:
+        while True:
+            try:
+                resp = rq.get('https://api.iextrading.com/1.0/stock/{}/chart/{}'
+                            .format(stock.lower(), period))
+            except rq.exceptions.ConnectionError:
+                print('Not able to connect to iex, trying again')
+                time.sleep(2)
+                continue
+            
+            except Exception as e:
+                print('IEX request for stock {} failed: {}'.format(stock, type(e)))
+                continue
+            
+            break
 
-for stock in stocks:
-    try:
-        resp = rq.get('https://api.iextrading.com/1.0/stock/{}/chart/{}'
-                      .format(stock.lower(), period))
-    except Exception as e:
-        print('IEX request for stock {} failed: {}'.format(stock, e))
-        continue
-    if resp.status_code == 200 and resp.text != '""':
-        print('Stock found: {}'.format(stock))
-        found = found + 1
-        outfile = '{}/{}_{}.csv'.format(outdir, stock.lower(), period)
+        if resp.status_code == 200 and resp.text != '""':
+            print('Stock found: {}'.format(stock))
+            found = found + 1
+            outfile = '{}/{}_{}.csv'.format(outdir, stock.lower(), period)
 
-        resp_json = resp.json()
-        f = open(outfile, 'w+')
-        writer = csv.writer(f, quoting=1)
-        # Hardcoded to maintain order
-        writer.writerow(headers)
-        for row in resp_json:
-            for col in headers:
-                if col not in row:
-                    row[col] = ''
-            writer.writerow([row['date'], row['open'], row['close'],
-                             row['change'], row['high'], row['low'],
-                             row['volume']])
-    else:
-        print('Stock not found: {}'.format(stock))
+            resp_json = resp.json()
+            f = open(outfile, 'w+')
+            writer = csv.writer(f, quoting=1)
+            # Hardcoded to maintain order
+            writer.writerow(headers)
+            for row in resp_json:
+                for col in headers:
+                    if col not in row:
+                        row[col] = ''
+                writer.writerow([row['date'], row['open'], row['close'],
+                                row['change'], row['high'], row['low'],
+                                row['volume']])
+        else:
+            print('Stock not found: {}'.format(stock))
 
-    time.sleep(1)
+        time.sleep(1)
+
+except KeyboardInterrupt:
+    print('\nKeyboard interrupt received, exiting...')
+    print('Would you like to clean outdir? [y/N]')
+    choice = input().lower()
+    if choice in ('yes', 'y'):
+        os.system('rm ' + outdir + '/*')
+    quit(0)
 
 print('Found {} of {} stocks'.format(found, len(stocks)))
